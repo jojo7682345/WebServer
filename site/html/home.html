@@ -1,0 +1,17 @@
+<div>
+    <div class="contentPanel">  
+        <div class="contentHeader">
+            <p class="headerLabel">Login Panel</p>
+        </div>  
+        <script src="scripts/Sha256.js"></script>
+        <script src="scripts/login.js"></script>
+        <div class="content" id="loginPanel">
+            <form class="loginForm" id="loginForm" onsubmit="event.preventDefault(); submitLoginData()">
+                <input class="loginInput" type="text" id="username" placeholder="Username">
+                <input class="loginInput" type="password" id="password" placeholder="Password">
+                <input class="loginSubmit" type="submit" id="login" value="Login">
+                
+            </form>
+        </div>
+    </div>
+</div>

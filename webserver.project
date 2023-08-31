@@ -1,0 +1,25 @@
+WebServer {
+	type: EXE
+	flags: -Wall -ggdb
+	export: [
+		$(OUTPUT)
+		site
+	]
+	compiler: gcc
+	source: [
+		src
+	]
+	include: [
+		include
+	]
+	libdir: [
+		lib
+	]
+	lib: [
+		microhttpd
+		wsock32
+		ws2_32
+		ucrtbase
+	]
+}
+

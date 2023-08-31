@@ -1,0 +1,9 @@
+.vscode/
+.vs/
+CppProperties.json
+bin
+lib
+webserver
+.exe
+build/tmp
+builder
