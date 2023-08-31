@@ -17,9 +17,9 @@ WebServer {
 	]
 	lib: [
 		microhttpd
-		wsock32
-		ws2_32
-		ucrtbase
+		#wsock32
+		#ws2_32
+		#ucrtbase
 	]
 }
 

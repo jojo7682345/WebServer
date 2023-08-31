@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include <conio.h>
+//#include <conio.h>
 
 #include "../dynamic/webserver.h"
 
@@ -32,6 +32,8 @@ int main() {
 							  (MHD_AccessHandlerCallback)&answer_to_connection, NULL, MHD_OPTION_END);
 	if (NULL == daemon) return 1;
 	getchar();
+
+
 	MHD_stop_daemon(daemon);
 
 	printf("returned succesfully\n");

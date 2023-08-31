@@ -2,6 +2,9 @@
 #define WEB_SERVER_H_
 
 #include <microhttpd.h>
+#include <stdlib.h>
+#include <string.h>
+
 typedef struct MHD_Connection* Connection;
 typedef struct MHD_Response* Response;
 #define nullptr ((void*)0)

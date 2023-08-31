@@ -127,8 +127,11 @@ size_t readFile(FileHandle file, size_t amount, void* buffer) {
 	if (buffer) {
 		memcpy(buffer, file->fileData, amount);
 	}
-
-	memmove(file->fileData, file->fileData + amount, amount);
+	if(amount == file->allocatedSize){
+		file->bufferIndex -= amount;
+		return amount;
+	}
+	memmove(file->fileData, file->fileData + amount, file->allocatedSize - amount);
 
 	file->bufferIndex -= amount;
 	return amount;

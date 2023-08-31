@@ -29,7 +29,9 @@ typedef struct GetRequest {
 	char file[FILE_STRING_SIZE + 1];
 } GetRequest;
 
-#define checkOption(str) (memcmp(url, str, __min(typeLen,sizeof(str)))==0)
+#define MIN(A,B) ((A) < (B) ? (A) : (B))
+
+#define checkOption(str) (memcmp(url, str, MIN(typeLen,sizeof(str)))==0)
 
 
 int findOptions(const char* url, GetRequest* getRequest) {
@@ -104,7 +106,7 @@ EXPORT int handleGetRequest(const char* url, size_t* uploadDataSize, const char*
 		}
 		size_t readSize = readFile(file, 0, fileData);
 		releaseFile(file);
-
+		
 		SEND_RESPONSE(MHD_HTTP_OK, MHD_create_response_from_buffer(readSize, fileData, MHD_RESPMEM_MUST_FREE));
 	}
 
