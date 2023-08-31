@@ -7,3 +7,4 @@ webserver
 .exe
 build/tmp
 builder
+builder.exe
