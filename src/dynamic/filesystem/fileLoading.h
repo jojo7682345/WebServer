@@ -1,13 +1,11 @@
 #pragma once
 #include <stdint.h>
 #include <stdio.h>
+#include <json-c/json.h>
 
 typedef unsigned char byte;
 typedef size_t byte_index;
 typedef uint32_t uint;
-
-
-
 
 #define FILE_STRING_SIZE 255
 typedef struct File {
@@ -34,5 +32,8 @@ void releaseFile(FileHandle file);
 size_t loadFile(FileHandle file, size_t amount);
 size_t readFile(FileHandle file, size_t amount, void* buffer);
 
+void listFilesInDirectory(const char* dir,char** str, size_t* len);
 
+const char* getFileTypeStr(const char* fileName);
+const char* getFileExtension(const char* fileName);
 

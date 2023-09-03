@@ -2,8 +2,8 @@ WebServer {
 	type: EXE
 	flags: -Wall -ggdb
 	export: [
-		$(OUTPUT)
 		site
+		$(OUTPUT)
 	]
 	compiler: gcc
 	source: [
@@ -17,6 +17,7 @@ WebServer {
 	]
 	lib: [
 		microhttpd
+		json-c
 		#wsock32
 		#ws2_32
 		#ucrtbase

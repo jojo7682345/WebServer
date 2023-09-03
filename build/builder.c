@@ -20,7 +20,7 @@
 #define LIB_PREFIX "lib"
 #define LIB_EXTENSION ".a"
 #define EXE_EXTENSION ""
-#define COPY_COMMAND(src, dst) "cp","-r",src,dst
+#define COPY_COMMAND(src, dst) "cp","-Tr",src,dst
 #endif
 
 #define PROJECT_FILE ".project"

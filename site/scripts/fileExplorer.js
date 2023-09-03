@@ -20,7 +20,7 @@ function openFile(path, file){
             method: 'GET'
         }).then(response => response.text()).then(text =>{
             
-            fileContentPanel.innerHTML = text;
+            fileContentPanel.innerHTML = `<p>${text}</p>`;
         } );
         return;
     }   
@@ -251,7 +251,7 @@ function generateFileElement(path, file){
 
 function listFilesInDirectory(path){
 
-    fetch(`/files?path=${path}`).then(response => response.json()).then(files => {
+    fetch(`/list?path=${path}`).then(response => response.json()).then(files => {
         const fileList = document.getElementById('fileList');
         fileList.innerHTML = '';
         if(getFilePath() != '/'){

@@ -2,19 +2,33 @@
 #include <memory.h>
 #include <string.h>
 #include <stdlib.h>
+#undef __USE_MISC
+#define __USE_MISC 1
+#include <dirent.h>
+#include <stdarg.h>
 
 #define nullptr ((void*)0)
 
-const char* findFileNameStart(const char* filePath) {
-	size_t len = strlen(filePath);
+const char* findLastOccuranceOf(const char* str, char chr){
+	size_t len = strlen(str);
 	for (size_t i = len - 1; i >= 0; i--) {
-		if (filePath[i] == '/') {
-			return filePath + i + 1;
+		if (str[i] == chr) {
+			return str + i + 1;
 		}
 		if (i == 0) {
-			return filePath;
+			return str;
 		}
 	}
+
+}
+
+const char* findFileNameStart(const char* filePath) {
+	return findLastOccuranceOf(filePath, '/');
+}
+
+const char* getFileExtension(const char* fileName){
+	return findLastOccuranceOf(fileName, '.');
+	
 }
 
 int attachFile(const char* filePath, FileHandle* file, size_t maxBufferSize) {
@@ -136,5 +150,87 @@ size_t readFile(FileHandle file, size_t amount, void* buffer) {
 	file->bufferIndex -= amount;
 	return amount;
 }
+
+#define _FILETYPE(type, str, ...) FILETYPE(type, str, __VA_ARGS__,nullptr)
+#define LIST_OF_FILE_TYPES \
+	_FILETYPE(TEXT, "text",		"txt")\
+	_FILETYPE(IMAGE, "image", 	"png", "jpg", "jpeg", "gif")\
+	_FILETYPE(VIDEO, "video", 	"mp4", "avi", "mkv")\
+	_FILETYPE(AUDIO, "audio", 	"mp3", "wav", "flac")\
+	_FILETYPE(PDF, "pdf", 		"pdf")\
+	_FILETYPE(URL, "url", 		"url")
+
+#define FILETYPE(type,...) type,
+typedef enum FileTypes{
+	LIST_OF_FILE_TYPES
+} FileTypes;
+#undef FILETYPE
+
+
+
+int checkContains(const char* str, ...){
+	va_list args;
+	
+	int valid = 0;
+
+	va_start(args, str);
+
+	const char* check;
+	while((check = va_arg(args, const char*))!=nullptr){
+		if(strcmp(str,check)==0){
+			valid = 1;
+			break;
+		}
+	}
+
+	va_end(args);
+	return valid;
+}
+
+
+#define FILETYPE(type, str, ...) if(checkContains(extension,__VA_ARGS__)){return str;}
+const char* getFileTypeStr(const char* fileName){
+		const char* extension = getFileExtension(fileName);
+		LIST_OF_FILE_TYPES;
+		return "text";
+}
+#undef FILETYPE
+
+void listFilesInDirectory(const char* path, char** str, size_t* len){
+	struct json_object* listedFiles = json_object_new_array();
+	
+	DIR* d;
+	struct dirent* dir;
+	d = opendir(path);
+
+	if(d){
+		while((dir = readdir(d)) != NULL){
+			if(strcmp(dir->d_name,".")==0 || strcmp(dir->d_name,"..")==0){
+				continue;
+			}
+
+			struct json_object* fileEntry = json_object_new_object();
+			json_object_object_add(fileEntry, "name", json_object_new_string(dir->d_name));
+			json_object_object_add(fileEntry, "isDirectory", json_object_new_boolean(dir->d_type == DT_DIR));
+			json_object_object_add(fileEntry, "fileType", json_object_new_string(dir->d_type == DT_DIR ? "folder" : getFileTypeStr(dir->d_name)));
+			json_object_array_add(listedFiles, fileEntry);
+		}
+		closedir(d);
+	}
+	const char* data = json_object_to_json_string_length(listedFiles, JSON_C_TO_STRING_PRETTY, len);
+	
+	*str = malloc(*len);
+	if(!*str){
+		printf("buy more ram\n");
+		return;
+	}
+	memcpy(*str, data, *len);
+
+	json_object_put(listedFiles);
+
+}
+
+
+
 
 

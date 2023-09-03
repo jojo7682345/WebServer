@@ -31,23 +31,18 @@ typedef struct GetRequest {
 
 #define MIN(A,B) ((A) < (B) ? (A) : (B))
 
-#define checkOption(str) (memcmp(url, str, MIN(typeLen,sizeof(str)))==0)
+#define checkOption(str) (memcmp(url+1, str, MIN(len,sizeof(str)))==0)
 
 
-int findOptions(const char* url, GetRequest* getRequest) {
+int isOption(const char* url, GetRequest* getRequest) {
 
 	size_t len = strlen(url);
-
-	char* typeEnd = memchr(url, '?', len);
-
-	if (!typeEnd) {
+	if(len <= 1){
 		return 0;
 	}
-
-	size_t typeLen = typeEnd - url;
-
 #define METHOD(name) if(checkOption(#name)) {\
 	getRequest->type=name;\
+	return 1;\
 }
 	LIST_OF_METHODS
 #undef METHOD
@@ -56,9 +51,7 @@ int findOptions(const char* url, GetRequest* getRequest) {
 			return 0;
 		}
 
-	printf("not supported yet\n");
-
-	return 1;
+	return 0;
 }
 
 
@@ -66,15 +59,99 @@ Response createEmptyResponse() {
 	return MHD_create_response_from_buffer(0, nullptr, MHD_RESPMEM_PERSISTENT);
 }
 
-#define SEND_RESPONSE(CODE, resp) int ret = MHD_queue_response(connection, CODE, resp);\
+#define SEND_RESPONSE(CODE, resp, callback) int ret = MHD_queue_response(connection, CODE, resp);\
 MHD_destroy_response(resp);\
+callback;\
 return ret;
 
 EXPORT int handleGetRequest(const char* url, size_t* uploadDataSize, const char* uploadData, Connection connection) {
 	GetRequest request = { 0 };
-	if (findOptions(url, &request)) {
 
+	if (isOption(url, &request)) {
 
+		if(request.type == list){
+
+			const char* path = MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "path");
+
+			const char pageBase[] = "./site";
+	 		char filePathBuffer[FILE_STRING_SIZE + sizeof(pageBase) + 1] = { 0 };
+			size_t urlLen = strlen(path);
+			if (urlLen > FILE_STRING_SIZE) {
+				SEND_RESPONSE(MHD_HTTP_BAD_REQUEST, createEmptyResponse(),);
+			}
+			memcpy(filePathBuffer, pageBase, sizeof(pageBase));
+			memcpy(filePathBuffer + sizeof(pageBase)-1, path, urlLen);
+
+			char* listedFiles;
+			size_t listedFilesLength = 0;
+			listFilesInDirectory(filePathBuffer, &listedFiles, &listedFilesLength);
+		
+			Response response = MHD_create_response_from_buffer(
+				listedFilesLength,
+				(void*) listedFiles, 
+				MHD_RESPMEM_MUST_COPY
+			);
+
+			MHD_add_response_header(response, MHD_HTTP_HEADER_CONTENT_TYPE, "text/html");
+
+			SEND_RESPONSE(
+					MHD_HTTP_OK, 
+					response,
+					free(listedFiles);
+			);
+
+		}
+
+		if(request.type == open){
+
+			const char* path = MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "path");
+			const char* fileName = MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "file");
+
+			const char pageBase[] = "./site";
+	 		char filePathBuffer[FILE_STRING_SIZE + sizeof(pageBase) + 1] = { 0 };
+			size_t urlLen = strlen(path);
+			size_t fileNameLen = strlen(fileName);
+			if (urlLen+fileNameLen > FILE_STRING_SIZE) {
+				SEND_RESPONSE(MHD_HTTP_BAD_REQUEST, createEmptyResponse(),);
+			}
+			memcpy(filePathBuffer, pageBase, sizeof(pageBase));
+			memcpy(filePathBuffer + sizeof(pageBase)-1, path, urlLen);
+			memcpy(filePathBuffer + urlLen + sizeof(pageBase)-1, fileName, fileNameLen);
+			
+			
+			FileHandle file;
+			if (!attachFile(filePathBuffer, &file, 0)) {
+				printf("unable to open file %s\n", filePathBuffer);
+				SEND_RESPONSE(MHD_HTTP_NOT_FOUND, createEmptyResponse(),);
+			}
+	
+			size_t sendSize = loadFile(file, 0);
+			void* fileData = malloc(sendSize);
+			if (!fileData) {
+				SEND_RESPONSE(MHD_HTTP_INTERNAL_SERVER_ERROR, createEmptyResponse(),);
+				return 0;
+			}
+			size_t readSize = readFile(file, 0, fileData);
+			releaseFile(file);
+
+			Response response = MHD_create_response_from_buffer(readSize, fileData, MHD_RESPMEM_MUST_COPY);
+
+			char* contentTypeBuffer[512] = {0};
+			const char* fileTypeStr = getFileTypeStr(filePathBuffer);
+			size_t fileTypeLen = strlen(fileTypeStr);
+			strcpy(contentTypeBuffer, fileTypeStr);
+			strcat(contentTypeBuffer, "/");
+			strcat(contentTypeBuffer, getFileExtension(filePathBuffer));
+
+			MHD_add_response_header(response, MHD_HTTP_HEADER_CONTENT_TYPE, contentTypeBuffer );
+			
+			SEND_RESPONSE(
+					MHD_HTTP_OK, 
+					response,
+					free(fileData);
+			);
+
+		}
 
 	} else {
 		// url is a page file
@@ -85,32 +162,39 @@ EXPORT int handleGetRequest(const char* url, size_t* uploadDataSize, const char*
 		char filePathBuffer[FILE_STRING_SIZE + sizeof(pageBase) + 1] = { 0 };
 		size_t urlLen = strlen(url);
 		if (urlLen > FILE_STRING_SIZE) {
-			SEND_RESPONSE(MHD_HTTP_BAD_REQUEST, createEmptyResponse());
+			SEND_RESPONSE(MHD_HTTP_BAD_REQUEST, createEmptyResponse(),);
 		}
 		memcpy(filePathBuffer, pageBase, sizeof(pageBase));
 		memcpy(filePathBuffer + sizeof(pageBase)-1, url, urlLen);
 
-		printf("%s\n", filePathBuffer);
 
 		FileHandle file;
 		if (!attachFile(filePathBuffer, &file, 0)) {
 			printf("unable to open file %s\n", filePathBuffer);
-			SEND_RESPONSE(MHD_HTTP_NOT_FOUND, createEmptyResponse());
+			SEND_RESPONSE(MHD_HTTP_NOT_FOUND, createEmptyResponse(),);
 		}
 
 		size_t sendSize = loadFile(file, 0);
 		void* fileData = malloc(sendSize);
 		if (!fileData) {
-			SEND_RESPONSE(MHD_HTTP_INTERNAL_SERVER_ERROR, createEmptyResponse());
+			SEND_RESPONSE(MHD_HTTP_INTERNAL_SERVER_ERROR, createEmptyResponse(),);
 			return 0;
 		}
 		size_t readSize = readFile(file, 0, fileData);
 		releaseFile(file);
-		
-		SEND_RESPONSE(MHD_HTTP_OK, MHD_create_response_from_buffer(readSize, fileData, MHD_RESPMEM_MUST_FREE));
+
+		SEND_RESPONSE(
+				MHD_HTTP_OK, 
+				MHD_create_response_from_buffer(
+					readSize, 
+					fileData, 
+					MHD_RESPMEM_MUST_COPY
+				),
+				free(fileData);
+		);
 	}
 
-	SEND_RESPONSE(MHD_HTTP_NOT_IMPLEMENTED, createEmptyResponse());
+	SEND_RESPONSE(MHD_HTTP_NOT_IMPLEMENTED, createEmptyResponse(),);
 }
 
 EXPORT int handlePostRequest(const char* url, size_t* uploadDataSize, const char* uploadData, Connection connection) {
