@@ -1,5 +1,5 @@
 #include "webserver.h"
-#include "filesystem/fileLoading.h"
+#include "filesystem/cache/filecache.h"
 
 #ifdef _WIN32
 //#define EXPORT __declspec(dllexport)
@@ -62,7 +62,21 @@ Response createEmptyResponse() {
 #define SEND_RESPONSE(CODE, resp, callback) int ret = MHD_queue_response(connection, CODE, resp);\
 MHD_destroy_response(resp);\
 callback;\
+if(CODE != MHD_HTTP_OK){\
+printf("sending empty response %s\n", #CODE);\
+}\
 return ret;
+
+int prefixPath(const char buffer[], const char* prefix, size_t prefixSize, const char* str){
+	
+	size_t len = strlen(str);
+	if (len > FILE_STRING_SIZE) {
+		return 0;
+	}
+	memcpy((char*)buffer, prefix, prefixSize);
+	memcpy((char*)buffer + prefixSize-1, str, len);
+	return 1;
+}
 
 EXPORT int handleGetRequest(const char* url, size_t* uploadDataSize, const char* uploadData, Connection connection) {
 	GetRequest request = { 0 };
@@ -75,12 +89,10 @@ EXPORT int handleGetRequest(const char* url, size_t* uploadDataSize, const char*
 
 			const char pageBase[] = "./site";
 	 		char filePathBuffer[FILE_STRING_SIZE + sizeof(pageBase) + 1] = { 0 };
-			size_t urlLen = strlen(path);
-			if (urlLen > FILE_STRING_SIZE) {
+			if(!prefixPath(filePathBuffer,pageBase, sizeof(pageBase), path)){
 				SEND_RESPONSE(MHD_HTTP_BAD_REQUEST, createEmptyResponse(),);
 			}
-			memcpy(filePathBuffer, pageBase, sizeof(pageBase));
-			memcpy(filePathBuffer + sizeof(pageBase)-1, path, urlLen);
+			printf("filePathBuffer: %s\n", filePathBuffer);
 
 			char* listedFiles;
 			size_t listedFilesLength = 0;
@@ -92,7 +104,7 @@ EXPORT int handleGetRequest(const char* url, size_t* uploadDataSize, const char*
 				MHD_RESPMEM_MUST_COPY
 			);
 
-			MHD_add_response_header(response, MHD_HTTP_HEADER_CONTENT_TYPE, "text/html");
+			MHD_add_response_header(response, MHD_HTTP_HEADER_CONTENT_TYPE, "text/json");
 
 			SEND_RESPONSE(
 					MHD_HTTP_OK, 
@@ -118,37 +130,34 @@ EXPORT int handleGetRequest(const char* url, size_t* uploadDataSize, const char*
 			memcpy(filePathBuffer + sizeof(pageBase)-1, path, urlLen);
 			memcpy(filePathBuffer + urlLen + sizeof(pageBase)-1, fileName, fileNameLen);
 			
-			
-			FileHandle file;
-			if (!attachFile(filePathBuffer, &file, 0)) {
-				printf("unable to open file %s\n", filePathBuffer);
-				SEND_RESPONSE(MHD_HTTP_NOT_FOUND, createEmptyResponse(),);
-			}
-	
-			size_t sendSize = loadFile(file, 0);
-			void* fileData = malloc(sendSize);
-			if (!fileData) {
+			void* data;
+			size_t size;
+			size_t offset;
+			size_t fileSize;
+			if(!fetchFile(filePathBuffer, &data, &offset, &size, &fileSize)){
 				SEND_RESPONSE(MHD_HTTP_INTERNAL_SERVER_ERROR, createEmptyResponse(),);
-				return 0;
 			}
-			size_t readSize = readFile(file, 0, fileData);
-			releaseFile(file);
 
-			Response response = MHD_create_response_from_buffer(readSize, fileData, MHD_RESPMEM_MUST_COPY);
+			Response response = MHD_create_response_from_buffer(size, data, MHD_RESPMEM_PERSISTENT);
 
-			char* contentTypeBuffer[512] = {0};
+			char contentTypeBuffer[512] = {0};
 			const char* fileTypeStr = getFileTypeStr(filePathBuffer);
-			size_t fileTypeLen = strlen(fileTypeStr);
+			//size_t fileTypeLen = strlen(fileTypeStr);
 			strcpy(contentTypeBuffer, fileTypeStr);
 			strcat(contentTypeBuffer, "/");
 			strcat(contentTypeBuffer, getFileExtension(filePathBuffer));
 
 			MHD_add_response_header(response, MHD_HTTP_HEADER_CONTENT_TYPE, contentTypeBuffer );
-			
+			MHD_add_response_header(response,MHD_HTTP_HEADER_ACCEPT_RANGES, "bytes");
+
+			char range[512] = {0};
+			sprintf(range, "bytes=%zi-%zi/%zi",offset,offset+size-1,fileSize);
+
+			MHD_add_response_header(response,MHD_HTTP_HEADER_RANGE, range);
+
 			SEND_RESPONSE(
-					MHD_HTTP_OK, 
+					MHD_HTTP_PARTIAL_CONTENT, 
 					response,
-					free(fileData);
 			);
 
 		}

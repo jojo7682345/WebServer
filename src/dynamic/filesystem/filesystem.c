@@ -1,4 +1,4 @@
-#include "fileLoading.h"
+#include "filesystem.h"
 #include <memory.h>
 #include <string.h>
 #include <stdlib.h>
@@ -6,6 +6,7 @@
 #define __USE_MISC 1
 #include <dirent.h>
 #include <stdarg.h>
+#include <ctype.h>
 
 #define nullptr ((void*)0)
 
@@ -166,7 +167,14 @@ typedef enum FileTypes{
 } FileTypes;
 #undef FILETYPE
 
-
+int strcicmp(char const *a, char const *b)
+{
+    for (;; a++, b++) {
+        int d = tolower((unsigned char)*a) - tolower((unsigned char)*b);
+        if (d != 0 || !*a)
+            return d;
+    }
+}
 
 int checkContains(const char* str, ...){
 	va_list args;
@@ -177,7 +185,7 @@ int checkContains(const char* str, ...){
 
 	const char* check;
 	while((check = va_arg(args, const char*))!=nullptr){
-		if(strcmp(str,check)==0){
+		if(strcicmp(str,check)==0){
 			valid = 1;
 			break;
 		}

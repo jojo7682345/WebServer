@@ -20,7 +20,7 @@ function openFile(path, file){
             method: 'GET'
         }).then(response => response.text()).then(text =>{
             
-            fileContentPanel.innerHTML = `<p>${text}</p>`;
+            fileContentPanel.innerHTML = `<pre>${text}</pre>`;
         } );
         return;
     }   
