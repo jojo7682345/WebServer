@@ -130,15 +130,15 @@ EXPORT int handleGetRequest(const char* url, size_t* uploadDataSize, const char*
 			memcpy(filePathBuffer + sizeof(pageBase)-1, path, urlLen);
 			memcpy(filePathBuffer + urlLen + sizeof(pageBase)-1, fileName, fileNameLen);
 			
-			void* data;
-			size_t size;
-			size_t offset;
-			size_t fileSize;
+			void* data = NULL;
+			size_t size = 0;
+			size_t offset = 0;
+			size_t fileSize = 0;
 			if(!fetchFile(filePathBuffer, &data, &offset, &size, &fileSize)){
 				SEND_RESPONSE(MHD_HTTP_INTERNAL_SERVER_ERROR, createEmptyResponse(),);
 			}
 
-			Response response = MHD_create_response_from_buffer(size, data, MHD_RESPMEM_PERSISTENT);
+			Response response = MHD_create_response_from_buffer(size, data, MHD_RESPMEM_MUST_COPY);
 
 			char contentTypeBuffer[512] = {0};
 			const char* fileTypeStr = getFileTypeStr(filePathBuffer);
@@ -147,17 +147,18 @@ EXPORT int handleGetRequest(const char* url, size_t* uploadDataSize, const char*
 			strcat(contentTypeBuffer, "/");
 			strcat(contentTypeBuffer, getFileExtension(filePathBuffer));
 
-			MHD_add_response_header(response, MHD_HTTP_HEADER_CONTENT_TYPE, contentTypeBuffer );
-			MHD_add_response_header(response,MHD_HTTP_HEADER_ACCEPT_RANGES, "bytes");
+			//MHD_add_response_header(response, MHD_HTTP_HEADER_CONTENT_TYPE, contentTypeBuffer );
+			//MHD_add_response_header(response,MHD_HTTP_HEADER_ACCEPT_RANGES, "bytes");
 
 			char range[512] = {0};
-			sprintf(range, "bytes=%zi-%zi/%zi",offset,offset+size-1,fileSize);
+			//sprintf(range, "bytes=%zi-%zi/%zi",offset,offset+size-1,fileSize);
 
-			MHD_add_response_header(response,MHD_HTTP_HEADER_RANGE, range);
+			//MHD_add_response_header(response,MHD_HTTP_HEADER_RANGE, range);
 
 			SEND_RESPONSE(
 					MHD_HTTP_PARTIAL_CONTENT, 
 					response,
+					free(data)
 			);
 
 		}

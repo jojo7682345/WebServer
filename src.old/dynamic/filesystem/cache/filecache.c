@@ -30,12 +30,13 @@ bool createFileCache(const char* filePath, size_t cacheSize, uint numCaches, Fil
 
     cacheSize = selectCacheSize(cacheSize, fileSize);
 
-    void* cacheSizes = malloc(cacheSize * sizeof(size_t));
+    void* cacheSizes = malloc(numCaches * sizeof(size_t));
     if(cacheSizes==NULL){
         printf("out of memory\n");
         abort();
         return 0;
     }
+    memset(cacheSizes, 0, numCaches*sizeof(size_t));
 
     void* caches = malloc(cacheSize * numCaches * sizeof(byte));
     if(caches==NULL){
@@ -43,6 +44,7 @@ bool createFileCache(const char* filePath, size_t cacheSize, uint numCaches, Fil
         abort();
         return 0;
     }
+    memset(caches, 0, cacheSize * numCaches * sizeof(byte));
 
     FileCache filecache = {
         .fd=file,
@@ -84,10 +86,10 @@ size_t readFileCache(Range* range, FileCache* fileCache, byte** data) {
     fileCache->cacheIndex++;
     fileCache->cacheIndex %= fileCache->numCaches;
     fileCache->cache =(byte*) fileCache->caches + fileCache->cacheIndex * fileCache->cacheSize;
-    fileCache->pCacheSize =(size_t*) fileCache->cacheSizes + fileCache->cacheIndex * sizeof(uint);
+    fileCache->pCacheSize =(size_t*) fileCache->cacheSizes + fileCache->cacheIndex * sizeof(size_t);
 
 
-    *fileCache->pCacheSize = fread(fileCache->cache, range->end - range->end, 1, fileCache->fd);
+    *fileCache->pCacheSize = fread(fileCache->cache,1, range->end - range->start, fileCache->fd);
     if(data){
         *data = cache;
     }
